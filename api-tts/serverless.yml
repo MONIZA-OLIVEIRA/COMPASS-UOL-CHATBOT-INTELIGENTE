@@ -1,0 +1,88 @@
+service: api-tts
+frameworkVersion: '4'
+ 
+provider:
+  name: aws
+  runtime: python3.9
+  region: us-east-1
+  stage: dev
+  environment:
+    DYNAMODB_TABLE: projeto-67
+    S3_BUCKET: s3damo
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "dynamodb:GetItem"
+            - "dynamodb:PutItem"
+          Resource:
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+        - Effect: "Allow"
+          Action:
+            - "s3:PutObject"
+            - "s3:GetObject"
+          Resource:
+            - "arn:aws:s3:::${self:provider.environment.S3_BUCKET}/*"
+ 
+functions:
+  health:
+    handler: handler.health
+    events:
+      - http:
+          path: /
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+ 
+  v1Description:
+    handler: handler.v1_description
+    events:
+      - http:
+          path: /v1
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+ 
+  tts:
+    handler: handler.tts_handler
+    events:
+      - http:
+          path: /v1/tts
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+ 
+resources:
+  Resources:
+    MyDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: unique_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: unique_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+ 
+    MyS3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_BUCKET}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
